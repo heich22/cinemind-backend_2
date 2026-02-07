@@ -4,16 +4,16 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(cors()); // Разрешаем запросы с любого домена (твоего фронтенда)
+app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-// --- API КЛЮЧИ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ ---
+// API Ключи
 const KP_KEY = process.env.KP_KEY;
 const GEMINI_KEY = process.env.GEMINI_KEY;
 
-// 1. Поиск фильмов через Кинопоиск
+// 1. Поиск фильмов
 app.get('/api/search', async (req, res) => {
     const { keyword } = req.query;
     try {
@@ -22,32 +22,46 @@ app.get('/api/search', async (req, res) => {
         });
         res.json(response.data);
     } catch (error) {
-        console.error('KP Error:', error.message);
-        res.status(500).json({ error: 'Ошибка при поиске в Кинопоиске' });
+        res.status(500).json({ error: 'Ошибка Кинопоиска' });
     }
 });
 
-// 2. Анализ через Gemini AI
+// 2. Исправленный запрос к Gemini (v1beta)
 app.post('/api/analyze', async (req, res) => {
     const { movieTitle, context, userHistory } = req.body;
+    
+    // ПРОВЕРКА: Правильный URL для Gemini 1.5 Flash
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
     
-    const promptText = `Ты эксперт кино CineMind. Пользователь любит: ${userHistory}. 
-    Проанализируй фильм "${movieTitle}". Контекст: ${context}. 
-    Напиши 2 коротких абзаца: почему подходит пользователю и вердикт по отзывам.`;
+    const promptData = {
+        contents: [{
+            parts: [{
+                text: `Ты эксперт кино CineMind. Пользователь любит: ${userHistory}. 
+                Проанализируй фильм "${movieTitle}". Контекст: ${context}. 
+                Напиши 2 коротких абзаца: почему подходит пользователю и краткий вердикт по отзывам зрителей.`
+            }]
+        }]
+    };
 
     try {
-        const response = await axios.post(url, {
-            contents: [{ parts: [{ text: promptText }] }]
+        const response = await axios.post(url, promptData, {
+            headers: { 'Content-Type': 'application/json' }
         });
-        const aiText = response.data.candidates[0].content.parts[0].text;
-        res.json({ analysis: aiText });
+        
+        if (response.data.candidates && response.data.candidates[0].content) {
+            const aiText = response.data.candidates[0].content.parts[0].text;
+            res.json({ analysis: aiText });
+        } else {
+            throw new Error('Empty AI response');
+        }
     } catch (error) {
-        console.error('Gemini Error:', error.message);
-        res.status(500).json({ error: 'Ошибка нейросети' });
+        // Выводим ошибку в логи Render для диагностики
+        console.error('Gemini Error Details:', error.response ? error.response.data : error.message);
+        res.status(error.response ? error.response.status : 500).json({ 
+            error: 'Ошибка нейросети', 
+            details: error.response ? error.response.data : error.message 
+        });
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
