@@ -54,7 +54,7 @@ app.post('/api/analyze', async (req, res) => {
             ]
         }, {
             headers: {
-                'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+                'Authorization': `Bearer ${DEEP_SEEK_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -67,3 +67,4 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`CineMind Server Live on ${PORT}`));
+
