@@ -9,12 +9,11 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-// API Ключи
+// На Render назови переменные именно так: KP_KEY, DEEPSEEK_KEY, OMDB_KEY
 const KP_KEY = process.env.KP_KEY;
-const DEEP_SEEK_KEY = process.env.DEEP_SEEK_KEY;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_KEY;
 const OMDB_KEY = process.env.OMDB_KEY;
 
-// 1. Поиск фильмов (Кинопоиск)
 app.get('/api/search', async (req, res) => {
     const { keyword } = req.query;
     try {
@@ -27,21 +26,27 @@ app.get('/api/search', async (req, res) => {
     }
 });
 
-// 2. Рейтинги IMDb и Rotten Tomatoes (OMDb)
 app.get('/api/ratings', async (req, res) => {
     const { title } = req.query;
     if (!OMDB_KEY) return res.json({ imdb: 'N/A', rt: 'N/A' });
     try {
+        // Ищем по точному названию для IMDb и RT
         const response = await axios.get(`http://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_KEY}`);
-        const rt = (response.data.Ratings || []).find(r => r.Source === "Rotten Tomatoes");
+        const data = response.data;
+        
+        let rtValue = 'N/A';
+        if (data.Ratings) {
+            const rt = data.Ratings.find(r => r.Source === "Rotten Tomatoes");
+            rtValue = rt ? rt.Value : 'N/A';
+        }
+
         res.json({
-            imdb: response.data.imdbRating || 'N/A',
-            rt: rt ? rt.Value : 'N/A'
+            imdb: data.imdbRating || 'N/A',
+            rt: rtValue
         });
     } catch (e) { res.json({ imdb: 'N/A', rt: 'N/A' }); }
 });
 
-// 3. Анализ DeepSeek (Вместо Gemini)
 app.post('/api/analyze', async (req, res) => {
     const { movieTitle, context, userHistory } = req.body;
 
@@ -49,12 +54,13 @@ app.post('/api/analyze', async (req, res) => {
         const response = await axios.post('https://api.deepseek.com/v1/chat/completions', {
             model: "deepseek-chat",
             messages: [
-                { role: "system", content: "Ты — кинокритик CineMind. Пиши кратко, честно и только на русском языке. Используй 2 небольших абзаца." },
-                { role: "user", content: `Проанализируй фильм "${movieTitle}". Контекст: ${context}. Пользователь любит: ${userHistory}. Стоит ли смотреть?` }
-            ]
+                { role: "system", content: "Ты — экспертный кинокритик CineMind. Твоя задача: дать краткий, стильный анализ фильма и в самом конце обязательно добавить оценку фильма по 100-балльной системе в формате [SCORE: XX], где XX - число." },
+                { role: "user", content: `Проанализируй фильм "${movieTitle}". Контекст: ${context}. Пользователь предпочитает: ${userHistory}. Дай вердикт и оценку.` }
+            ],
+            max_tokens: 500
         }, {
             headers: {
-                'Authorization': `Bearer ${DEEP_SEEK_KEY}`,
+                'Authorization': `Bearer ${DEEPSEEK_KEY}`, // Проверь имя переменной на Render!
                 'Content-Type': 'application/json'
             }
         });
@@ -62,10 +68,8 @@ app.post('/api/analyze', async (req, res) => {
         res.json({ analysis: response.data.choices[0].message.content });
     } catch (error) {
         console.error('DeepSeek Error:', error.response?.data || error.message);
-        res.status(500).json({ error: 'DeepSeek Offline' });
+        res.status(500).json({ error: 'DeepSeek Offline', details: error.message });
     }
 });
 
-app.listen(PORT, () => console.log(`CineMind Server Live on ${PORT}`));
-
-
+app.listen(PORT, () => console.log(`CineMind Server Live`));
