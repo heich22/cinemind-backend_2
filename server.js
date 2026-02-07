@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 10000;
 
 // API Ключи
 const KP_KEY = process.env.KP_KEY;
-const DEEPSEEK_KEY = process.env.DEEPSEEK_KEY;
+const DEEP_SEEK_KEY = process.env.DEEP_SEEK_KEY;
 const OMDB_KEY = process.env.OMDB_KEY;
 
 // 1. Поиск фильмов (Кинопоиск)
@@ -67,4 +67,5 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`CineMind Server Live on ${PORT}`));
+
 
