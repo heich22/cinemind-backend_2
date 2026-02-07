@@ -13,7 +13,7 @@ const KP_KEY = process.env.KP_KEY;
 const GEMINI_KEY = process.env.GEMINI_KEY;
 const OMDB_KEY = process.env.OMDB_KEY;
 
-// 1. Поиск Кинопоиск
+// Поиск фильмов (Кинопоиск)
 app.get('/api/search', async (req, res) => {
     const { keyword } = req.query;
     try {
@@ -26,7 +26,7 @@ app.get('/api/search', async (req, res) => {
     }
 });
 
-// 2. Рейтинги OMDb (IMDb + Rotten Tomatoes)
+// Рейтинги (OMDb: IMDb + Rotten Tomatoes)
 app.get('/api/ratings', async (req, res) => {
     const { title } = req.query;
     if (!OMDB_KEY) return res.json({ imdb: 'N/A', rt: 'N/A' });
@@ -40,35 +40,22 @@ app.get('/api/ratings', async (req, res) => {
     } catch (e) { res.json({ imdb: 'N/A', rt: 'N/A' }); }
 });
 
-// 3. ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ GEMINI (v1beta стабильный путь)
+// АНАЛИЗ AI (Исправленный путь)
 app.post('/api/analyze', async (req, res) => {
     const { movieTitle, context, userHistory } = req.body;
     
-    // ВНИМАНИЕ: Используем v1beta/models/gemini-1.5-flash
+    // САМЫЙ СТАБИЛЬНЫЙ URL: v1beta + models + суффикс
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
     
-    const payload = {
-        contents: [{
-            parts: [{
-                text: `Ты эксперт CineMind. Проанализируй фильм "${movieTitle}". Контекст: ${context}. Пользователь любит: ${userHistory}. Дай краткий вердикт.`
-            }]
-        }]
-    };
-
     try {
-        const response = await axios.post(url, payload, {
-            headers: { 'Content-Type': 'application/json' }
+        const response = await axios.post(url, {
+            contents: [{ parts: [{ text: `Ты эксперт CineMind. Проанализируй фильм "${movieTitle}". Контекст: ${context}. Пользователь любит: ${userHistory}. Дай краткий вердикт.` }] }]
         });
-        
-        if (response.data.candidates && response.data.candidates[0].content) {
-            res.json({ analysis: response.data.candidates[0].content.parts[0].text });
-        } else {
-            res.status(500).json({ error: 'Пустой ответ ИИ' });
-        }
+        res.json({ analysis: response.data.candidates[0].content.parts[0].text });
     } catch (error) {
-        console.error('Gemini Error Details:', error.response?.data || error.message);
+        console.error('Gemini Error:', error.response?.data || error.message);
         res.status(500).json({ error: 'AI Error', details: error.response?.data || error.message });
     }
 });
 
-app.listen(PORT, () => console.log(`CineMind Server live on port ${PORT}`));
+app.listen(PORT, () => console.log(`CineMind Server Live` flocking on ${PORT}`));
